@@ -27,7 +27,7 @@ const { listingSchema } = require("./Schema.js");
 const wrapAsync = require("./utils/wrapAsync.js");
 const ExpressError = require("./utils/ExpressError.js");
 
-const port = 8080;
+const port = process.env.PORT || 8080; // ✅ Use dynamic port for Render
 
 // ===== Connect to MongoDB =====
 mongoose
@@ -49,8 +49,7 @@ app.use(cookieParser());
 // ===== MongoDB Session Store =====
 const store = MongoStore.create({
   mongoUrl: process.env.ATLASDB_URL,
-  crypto: 
-  { 
+  crypto: { 
     secret: process.env.SECRET,
   },
   touchAfter: 24 * 3600
@@ -59,7 +58,7 @@ store.on("error", (e) => {
   console.log("❌ MongoStore Error:", e);
 });
 
-// ===== Session & Flash Setup (ORDER MATTERS) =====
+// ===== Session & Flash Setup =====
 const sessionConfig = {
   store,
   secret: "mysupersceretcode",
@@ -71,7 +70,7 @@ const sessionConfig = {
   }
 };
 app.use(session(sessionConfig));
-app.use(flash()); // ✅ flash after session
+app.use(flash());
 
 // ===== Passport Setup =====
 app.use(passport.initialize());
@@ -80,7 +79,7 @@ passport.use(new LocalStrategy(User.authenticate()));
 passport.serializeUser(User.serializeUser());
 passport.deserializeUser(User.deserializeUser());
 
-// ===== Global Variables for Views (AFTER flash) =====
+// ===== Global Variables for Views =====
 app.use((req, res, next) => {
   res.locals.currUser = req.user;
   res.locals.success = req.flash("success");
@@ -99,7 +98,7 @@ app.use("/listings", listingRouter);
 app.use("/listings/:id/reviews", reviewsRouter);
 app.use("/", userRouter);
 
-// ===== Cookie Demo Routes (Optional) =====
+// ===== Cookie & Flash Test Routes (Optional) =====
 app.get("/getcookies", (req, res) => {
   res.cookie("Name", "Shreyansh");
   res.cookie("Phone", "7766867474");
@@ -116,6 +115,17 @@ app.get("/test-flash", (req, res) => {
   res.redirect("/listings");
 });
 
+app.get("/test", (req, res) => {
+  req.flash("success", "Flash success chal gaya!");
+  req.flash("error", "Flash error chal gaya!");
+  res.redirect("/listings");
+});
+
+// ===== ✅ Root Route for Render =====
+app.get("/", (req, res) => {
+  res.redirect("/listings");
+});
+
 // ===== Error Handler =====
 app.use((err, req, res, next) => {
   const { status = 500, message = "Something went wrong!" } = err;
@@ -125,11 +135,4 @@ app.use((err, req, res, next) => {
 // ===== Start Server =====
 app.listen(port, () => {
   console.log(`🚀 Server running on http://localhost:${port}`);
-});
-
-
-app.get("/test", (req, res) => {
-  req.flash("success", "Flash success chal gaya!");
-  req.flash("error", "Flash error chal gaya!");
-  res.redirect("/listings");
 });
